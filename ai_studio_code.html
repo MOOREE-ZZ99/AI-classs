@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VORTEX | 全栈数字合成实验室 - 不止于建筑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;900&family=Bebas+Neue&display=swap');
+
+  :root {
+    --bg: #050505;
+    --accent: #00FF41; /* 黑客矩阵绿 */
+    --gold: #FFD700;
+    --danger: #FF3131;
+    --white: #FFFFFF;
+    --gray: #1A1A1A;
+    --text-dim: #888;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; cursor: crosshair; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Noto Sans SC', sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── GLITCH EFFECT ── */
+  .glitch {
+    position: relative;
+    display: inline-block;
+  }
+  .glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 2px;
+    text-shadow: -1px 0 red;
+    top: 0;
+    color: white;
+    background: black;
+    overflow: hidden;
+    clip: rect(0,900px,0,0); 
+    animation: noise-anim 2s infinite linear alternate-reverse;
+  }
+
+  @keyframes noise-anim {
+    0% { clip: rect(10px, 9999px, 50px, 0); }
+    20% { clip: rect(80px, 9999px, 30px, 0); }
+    100% { clip: rect(40px, 9999px, 90px, 0); }
+  }
+
+  /* ── NAV ── */
+  nav {
+    padding: 2rem;
+    border-bottom: 1px solid var(--gray);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+  }
+
+  .nav-logo { font-family: 'Bebas Neue'; font-size: 2rem; letter-spacing: 2px; }
+  .status { font-family: 'Space Mono'; font-size: 0.7rem; color: var(--accent); }
+
+  /* ── HERO ── */
+  #hero {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 10%;
+    position: relative;
+  }
+
+  .hero-eyebrow { font-family: 'Space Mono'; color: var(--accent); margin-bottom: 1rem; }
+  .hero-title { font-size: clamp(3rem, 10vw, 8rem); font-weight: 900; line-height: 0.9; margin-bottom: 2rem; }
+  .hero-sub { max-width: 600px; color: var(--text-dim); font-size: 1.2rem; margin-bottom: 3rem; border-left: 2px solid var(--accent); padding-left: 20px;}
+
+  .btn {
+    display: inline-block;
+    padding: 1.5rem 3rem;
+    background: var(--white);
+    color: var(--bg);
+    text-decoration: none;
+    font-weight: 900;
+    text-transform: uppercase;
+    transition: 0.3s;
+  }
+  .btn:hover { background: var(--accent); transform: skewX(-10deg); }
+
+  /* ── EXIT STRATEGY (The Pivot) ── */
+  #exit-plan {
+    padding: 10rem 10%;
+    background: #0A0A0A;
+  }
+  .section-tag { font-family: 'Space Mono'; color: var(--danger); text-transform: uppercase; margin-bottom: 1rem; display: block;}
+  .section-title { font-size: 3rem; font-weight: 900; margin-bottom: 4rem; }
+
+  .exit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+  }
+
+  .exit-card {
+    background: var(--gray);
+    padding: 3rem;
+    border: 1px solid transparent;
+    transition: 0.3s;
+  }
+  .exit-card:hover { border-color: var(--accent); background: #111; }
+  .exit-num { font-family: 'Bebas Neue'; font-size: 4rem; color: rgba(255,255,255,0.05); line-height: 1; }
+  .exit-name { font-size: 1.5rem; font-weight: 900; margin: 1rem 0; }
+  .exit-desc { color: var(--text-dim); font-size: 0.9rem; }
+
+  /* ── TOOLCHAIN ── */
+  #tools {
+    padding: 10rem 10%;
+    border-top: 1px solid var(--gray);
+  }
+
+  .tool-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2rem 0;
+    border-bottom: 1px solid var(--gray);
+    align-items: center;
+  }
+  .tool-name { font-family: 'Space Mono'; font-size: 1.5rem; font-weight: 700; }
+  .tool-role { color: var(--accent); font-size: 0.8rem; text-transform: uppercase; }
+  .tool-target { text-align: right; }
+  .target-label { font-size: 0.6rem; color: var(--text-dim); display: block; }
+  .target-value { font-weight: 700; }
+
+  /* ── THE BOT ── */
+  #bot {
+    padding: 5rem 10%;
+    text-align: center;
+  }
+  .bot-box {
+    background: linear-gradient(45deg, #111, #000);
+    padding: 4rem;
+    border: 1px dashed var(--accent);
+  }
+
+  footer {
+    padding: 5rem 10%;
+    text-align: center;
+    font-family: 'Space Mono';
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo glitch" data-text="VORTEX">VORTEX</div>
+  <div class="status">● AI_LAB_ONLINE // SYSTEM_READY</div>
+</nav>
+
+<section id="hero">
+  <div class="hero-eyebrow">ARCH-HACKER PROTOCOL // 2025</div>
+  <h1 class="hero-title">建筑学<br><span style="color:var(--accent)">是你的新手村</span></h1>
+  <p class="hero-sub">
+    没人愿意学建筑了？没关系。我们要学的是如何利用<strong style="color:var(--white)">三维空间逻辑</strong>降维打击数字世界。
+    <br><br>
+    这里不生产绘图员，这里生产<strong>全栈数字造物主</strong>。
+  </p>
+  <div>
+    <a href="https://www.coze.cn/s/V17UxEP1VKg/" class="btn">进入终端</a>
+  </div>
+</section>
+
+<section id="exit-plan">
+  <span class="section-tag">The Exit Strategy // 撤离计划</span>
+  <h2 class="section-title">利用建筑学思维，你可以入侵哪些行业？</h2>
+  
+  <div class="exit-grid">
+    <div class="exit-card">
+      <div class="exit-num">01</div>
+      <div class="exit-name">具身智能训练</div>
+      <div class="exit-desc">既然现实不盖房，就在数字孪生世界里为机器人搭建训练场。你是空间的架构师，也是物理法则的制定者。</div>
+    </div>
+    <div class="exit-card">
+      <div class="exit-num">02</div>
+      <div class="exit-name">生成式游戏世界</div>
+      <div class="exit-desc">抛弃传统建模。用算法生成无限的关卡与地形。建筑学的尺度感是你降维打击普通美术的核心武器。</div>
+    </div>
+    <div class="exit-card">
+      <div class="exit-num">03</div>
+      <div class="exit-name">自动化情报系统</div>
+      <div class="exit-desc">将城市地块分析转化为地缘政治与资本情报。学会用 AI 处理多维数据流，你就是投行的空间分析专家。</div>
+    </div>
+    <div class="exit-card">
+      <div class="exit-num">04</div>
+      <div class="exit-name">AI 产品经理</div>
+      <div class="exit-desc">建筑教育训练的是处理极度复杂矛盾的能力。学会用 Cursor 写代码，你一个人就是一个软件公司。</div>
+    </div>
+  </div>
+</section>
+
+<section id="tools">
+  <span class="section-tag">Weaponry // 武器库</span>
+  <h2 class="section-title">你的全栈工具链</h2>
+
+  <div class="tool-row">
+    <div>
+        <span class="tool-role">语义大脑</span>
+        <div class="tool-name">Claude 3.5 / GPT-4o</div>
+    </div>
+    <div class="tool-target">
+        <span class="target-label">降维打击领域</span>
+        <div class="target-value">复杂策略 · 法律文本 · 逻辑架构</div>
+    </div>
+  </div>
+
+  <div class="tool-row">
+    <div>
+        <span class="tool-role">视觉引擎</span>
+        <div class="tool-name">Flux / Midjourney / SD</div>
+    </div>
+    <div class="tool-target">
+        <span class="target-label">降维打击领域</span>
+        <div class="target-value">电影概念 · 品牌视觉 · 空间美学</div>
+    </div>
+  </div>
+
+  <div class="tool-row">
+    <div>
+        <span class="tool-role">数字血肉</span>
+        <div class="tool-name">Cursor / n8n / Python</div>
+    </div>
+    <div class="tool-target">
+        <span class="target-label">降维打击领域</span>
+        <div class="target-value">自动化流 · 独立软件 · 机器人逻辑</div>
+    </div>
+  </div>
+
+  <div class="tool-row">
+    <div>
+        <span class="tool-role">交互世界</span>
+        <div class="tool-name">Unreal Engine 5 / Blender</div>
+    </div>
+    <div class="tool-target">
+        <span class="target-label">降维打击领域</span>
+        <div class="target-value">虚拟制片 · 元宇宙架构 · 模拟实景</div>
+    </div>
+  </div>
+</section>
+
+<section id="bot">
+    <div class="bot-box">
+        <h2 style="font-size: 2rem; margin-bottom: 2rem;">Arch-Hacker 01 智能体</h2>
+        <p style="color:var(--text-dim); margin-bottom: 2rem;">这是你的“第二大脑”，用于处理一切逻辑、图像与代码生成。</p>
+        <a href="https://www.coze.cn/s/V17UxEP1VKg/" style="color:var(--accent); font-family: 'Space Mono';">RUN_TERMINAL_COMMAND ></a>
+    </div>
+</section>
+
+<footer>
+  <p>// ARCHITECTURE IS DATA // DATA IS POWER // POWER IS FREEDOM //</p>
+  <p style="margin-top: 1rem;">VORTEX LAB © 2025 - 拒绝平庸生存</p>
+</footer>
+
+</body>
+</html>
