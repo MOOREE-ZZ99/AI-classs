@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Isometric Dino Journey</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .title {
+            font-size: 2.5em;
+            color: #2c3e50;
+            text-shadow: 2px 2px 4px rgba(255,255,255,0.5);
+            margin-bottom: 10px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            padding: 20px 40px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .controls h3 {
+            color: #e74c3c;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .key {
+            display: inline-block;
+            background: #34495e;
+            color: white;
+            padding: 8px 16px;
+            margin: 0 5px;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #2c3e50;
+        }
+
+        .level-indicator {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px 25px;
+            border-radius: 20px;
+            font-size: 1.2em;
+            color: #2c3e50;
+            font-weight: bold;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            padding: 40px 60px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            z-index: 200;
+        }
+
+        .message h2 {
+            color: #e74c3c;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        .message p {
+            color: #7f8c8d;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(231, 76, 60, 0.4);
+        }
+
+        .monument-valley-decoration {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .sun {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, #ffecd2 0%, transparent 70%);
+            border-radius: 50%;
+            top: 10%;
+            right: 10%;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="monument-valley-decoration">
+        <div class="sun"></div>
+    </div>
+
+    <div class="ui-overlay">
+        <h1 class="title">DINO JOURNEY</h1>
+    </div>
+
+    <div class="level-indicator">
+        Level <span id="currentLevel">1</span>
+    </div>
+
+    <div class="controls">
+        <h3>操作指南</h3>
+        <div>
+            <span class="key">W</span>
+            <span class="key">A</span>
+            <span class="key">S</span>
+            <span class="key">D</span>
+            <span style="margin-left: 15px; color: #7f8c8d;">或方向键移动</span>
+        </div>
+        <div style="margin-top: 10px; color: #95a5a6; font-size: 0.9em;">
+            收集所有星星，到达传送门进入下一关
+        </div>
+    </div>
+
+    <div class="message" id="messageBox">
+        <h2>关卡完成！</h2>
+        <p>准备好迎接下一个挑战了吗？</p>
+        <button class="btn" onclick="game.nextLevel()">下一关</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 设置画布大小
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // 纪念碑谷配色方案
+        const colors = {
+            ground: ['#e8d5b7', '#d4c4a8', '#c9b896'],
+            wall: ['#e74c3c', '#c0392b', '#a93226'],
+            wallTop: ['#ec7063', '#cd6155'],
+            dino: '#535c68',
+            dinoLight: '#7f8c8d',
+            star: '#f1c40f',
+            portal: ['#9b59b6', '#8e44ad', '#7d3c98'],
+            cactus: '#27ae60'
+        };
+
+        // 等距投影参数
+        const iso = {
+            angle: 30 * Math.PI / 180,
+            scale: 40,
+            offsetX: canvas.width / 2,
+            offsetY: canvas.height / 3
+        };
+
+        // 3D转2D等距投影
+        function toIso(x, y, z) {
+            const isoX = (x - y) * Math.cos(iso.angle) * iso.scale;
+            const isoY = (x + y) * Math.sin(iso.angle) * iso.scale - z * iso.scale * 0.5;
+            return {
+                x: iso.offsetX + isoX,
+                y: iso.offsetY + isoY
+            };
+        }
+
+        // 游戏状态
+        const game = {
+            level: 1,
+            maxLevels: 5,
+            grid: [],
+            player: { x: 0, y: 0, z: 0, targetX: 0, targetY: 0, moving: false },
+            stars: [],
+            collectedStars: 0,
+            portal: { x: 0, y: 0, z: 0, active: false },
+            camera: { x: 0, y: 0 },
+            particles: [],
+            time: 0
+        };
+
+        // 初始化关卡
+        function initLevel(level) {
+            game.grid = [];
+            game.stars = [];
+            game.collectedStars = 0;
+            game.particles = [];
+            game.player.moving = false;
+            
+            const size = 6 + level;
+            
+            // 生成纪念碑谷风格的关卡
+            for (let x = 0; x < size; x++) {
+                game.grid[x] = [];
+                for (let y = 0; y < size; y++) {
+                    // 创建高低起伏的地形
+                    let height = Math.floor(Math.sin(x * 0.5) * Math.cos(y * 0.5) * 2) + 1;
+                    
+                    // 确保起点和终点是平地
+                    if ((x === 1 && y === 1) || (x === size-2 && y === size-2)) {
+                        height = 1;
+                    }
+                    
+                    // 创建路径
+                    if (Math.random() > 0.8 && !(x === 1 && y === 1)) {
+                        height = 0; // 空隙
+                    }
+                    
+                    game.grid[x][y] = height;
+                }
+            }
+            
+            // 设置玩家起点
+            game.player.x = game.player.targetX = 1;
+            game.player.y = game.player.targetY = 1;
+            game.player.z = game.grid[1][1];
+            
+            // 设置传送门
+            game.portal.x = size - 2;
+            game.portal.y = size - 2;
+            game.portal.z = game.grid[size-2][size-2];
+            game.portal.active = false;
+            
+            // 放置星星
+            const starCount = 3 + level;
+            for (let i = 0; i < starCount; i++) {
+                let sx, sy;
+                do {
+                    sx = Math.floor(Math.random() * size);
+                    sy = Math.floor(Math.random() * size);
+                } while (game.grid[sx][sy] === 0 || (sx === 1 && sy === 1) || 
+                         (sx === game.portal.x && sy === game.portal.y));
+                
+                game.stars.push({
+                    x: sx,
+                    y: sy,
+                    z: game.grid[sx][sy],
+                    collected: false,
+                    float: Math.random() * Math.PI * 2
+                });
+            }
+            
+            updateUI();
+        }
+
+        // 绘制立方体
+        function drawCube(x, y, z, size, color, isTop = false) {
+            const pos = toIso(x, y, z);
+            const top = toIso(x, y, z + size);
+            const right = toIso(x + 1, y, z);
+            const left = toIso(x, y + 1, z);
+            const topRight = toIso(x + 1, y, z + size);
+            const topLeft = toIso(x, y + 1, z + size);
+            
+            // 右侧面
+            ctx.fillStyle = color[1] || color;
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(right.x, right.y);
+            ctx.lineTo(topRight.x, topRight.y);
+            ctx.lineTo(top.x, top.y);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 左侧面
+            ctx.fillStyle = color[2] || color;
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(left.x, left.y);
+            ctx.lineTo(topLeft.x, topLeft.y);
+            ctx.lineTo(top.x, top.y);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 顶面
+            ctx.fillStyle = color[0] || color;
+            ctx.beginPath();
+            ctx.moveTo(top.x, top.y);
+            ctx.lineTo(topRight.x, topRight.y);
+            ctx.lineTo(toIso(x + 1, y + 1, z + size).x, toIso(x + 1, y + 1, z + size).y);
+            ctx.lineTo(topLeft.x, topLeft.y);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 高光
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // 绘制恐龙
+        function drawDino(x, y, z) {
+            const pos = toIso(x, y, z + 1);
+            const scale = iso.scale;
+            
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            
+            // 身体阴影
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.ellipse(0, scale * 0.3, scale * 0.6, scale * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 身体（谷歌恐龙风格）
+            ctx.fillStyle = colors.dino;
+            // 躯干
+            ctx.fillRect(-scale * 0.4, -scale * 0.8, scale * 0.8, scale * 0.6);
+            // 头
+            ctx.fillRect(-scale * 0.3, -scale * 1.2, scale * 0.6, scale * 0.5);
+            // 眼睛
+            ctx.fillStyle = 'white';
+            ctx.fillRect(scale * 0.1, -scale * 1.1, scale * 0.15, scale * 0.15);
+            ctx.fillStyle = 'black';
+            ctx.fillRect(scale * 0.15, -scale * 1.05, scale * 0.08, scale * 0.08);
+            
+            // 腿（动画）
+            ctx.fillStyle = colors.dino;
+            const legOffset = Math.sin(game.time * 0.2) * scale * 0.1;
+            ctx.fillRect(-scale * 0.3, -scale * 0.2 + legOffset, scale * 0.2, scale * 0.4);
+            ctx.fillRect(scale * 0.1, -scale * 0.2 - legOffset, scale * 0.2, scale * 0.4);
+            
+            // 尾巴
+            ctx.beginPath();
+            ctx.moveTo(-scale * 0.4, -scale * 0.5);
+            ctx.lineTo(-scale * 0.7, -scale * 0.3);
+            ctx.lineTo(-scale * 0.4, -scale * 0.3);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        // 绘制星星
+        function drawStar(star) {
+            if (star.collected) return;
+            
+            const floatY = Math.sin(game.time * 0.05 + star.float) * 10;
+            const pos = toIso(star.x, star.y, star.z + 1.5);
+            pos.y += floatY;
+            
+            const size = iso.scale * 0.3;
+            
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            ctx.rotate(game.time * 0.02);
+            
+            // 星星光芒
+            ctx.fillStyle = `rgba(241, 196, 15, ${0.3 + Math.sin(game.time * 0.1) * 0.2})`;
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const r = i % 2 === 0 ? size * 1.5 : size * 0.5;
+                ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+            }
+            ctx.closePath();
+            ctx.fill();
+            
+            // 星星主体
+            ctx.fillStyle = colors.star;
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
+                const r = i % 2 === 0 ? size : size * 0.4;
+                ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+            }
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        // 绘制传送门
+        function drawPortal() {
+            const pos = toIso(game.portal.x, game.portal.y, game.portal.z + 1);
+            const scale = iso.scale;
+            
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            
+            // 旋转的传送门效果
+            const rotation = game.time * 0.02;
+            const pulse = 1 + Math.sin(game.time * 0.1) * 0.1;
+            
+            // 外圈
+            for (let i = 0; i < 3; i++) {
+                ctx.rotate(rotation * (i + 1) * 0.5);
+                ctx.fillStyle = colors.portal[i];
+                ctx.globalAlpha = 0.6;
+                
+                ctx.beginPath();
+                ctx.arc(0, 0, scale * (0.8 - i * 0.2) * pulse, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.globalAlpha = 1;
+            
+            // 中心
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(0, 0, scale * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        // 绘制仙人掌（障碍物）
+        function drawCactus(x, y, z) {
+            const pos = toIso(x, y, z + 1);
+            const scale = iso.scale * 0.6;
+            
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            
+            // 主干
+            ctx.fillStyle = colors.cactus;
+            ctx.fillRect(-scale * 0.2, -scale, scale * 0.4, scale);
+            
+            // 左臂
+            ctx.fillRect(-scale * 0.5, -scale * 0.7, scale * 0.3, scale * 0.2);
+            ctx.fillRect(-scale * 0.5, -scale * 0.7, scale * 0.15, scale * 0.4);
+            
+            // 右臂
+            ctx.fillRect(scale * 0.2, -scale * 0.5, scale * 0.3, scale * 0.2);
+            ctx.fillRect(scale * 0.35, -scale * 0.5, scale * 0.15, scale * 0.3);
+            
+            ctx.restore();
+        }
+
+        // 粒子效果
+        function createParticles(x, y, z, color) {
+            for (let i = 0; i < 10; i++) {
+                game.particles.push({
+                    x: x, y: y, z: z + 1,
+                    vx: (Math.random() - 0.5) * 0.1,
+                    vy: (Math.random() - 0.5) * 0.1,
+                    vz: Math.random() * 0.2,
+                    life: 1,
+                    color: color
+                });
+            }
+        }
+
+        function updateParticles() {
+            game.particles = game.particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.z += p.vz;
+                p.vz -= 0.01;
+                p.life -= 0.02;
+                return p.life > 0;
+            });
+        }
+
+        function drawParticles() {
+            game.particles.forEach(p => {
+                const pos = toIso(p.x, p.y, p.z);
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(pos.x - 3, pos.y - 3, 6, 6);
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        // 主渲染循环
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            game.time++;
+            
+            // 更新相机平滑跟随
+            const targetCamX = game.player.x * iso.scale * 0.5;
+            const targetCamY = game.player.y * iso.scale * 0.5;
+            game.camera.x += (targetCamX - game.camera.x) * 0.1;
+            game.camera.y += (targetCamY - game.camera.y) * 0.1;
+            
+            iso.offsetX = canvas.width / 2 - game.camera.x;
+            iso.offsetY = canvas.height / 3 - game.camera.y;
+            
+            // 按深度排序所有可绘制对象
+            const drawList = [];
+            
+            // 添加地面和墙壁
+            for (let x = 0; x < game.grid.length; x++) {
+                for (let y = 0; y < game.grid[x].length; y++) {
+                    const height = game.grid[x][y];
+                    if (height > 0) {
+                        drawList.push({
+                            type: 'ground',
+                            x, y, z: 0,
+                            depth: x + y,
+                            height
+                        });
+                    }
+                }
+            }
+            
+            // 添加星星
+            game.stars.forEach((star, i) => {
+                if (!star.collected) {
+                    drawList.push({
+                        type: 'star',
+                        star,
+                        x: star.x, y: star.y, z: star.z,
+                        depth: star.x + star.y
+                    });
+                }
+            });
+            
+            // 添加传送门
+            drawList.push({
+                type: 'portal',
+                x: game.portal.x, y: game.portal.y, z: game.portal.z,
+                depth: game.portal.x + game.portal.y
+            });
+            
+            // 添加玩家
+            drawList.push({
+                type: 'player',
+                x: game.player.x, y: game.player.y, z: game.player.z,
+                depth: game.player.x + game.player.y
+            });
+            
+            // 按深度排序
+            drawList.sort((a, b) => a.depth - b.depth);
+            
+            // 绘制所有对象
+            drawList.forEach(item => {
+                switch(item.type) {
+                    case 'ground':
+                        // 绘制多层堆叠的方块创造高度
+                        for (let h = 0; h < item.height; h++) {
+                            const isTop = h === item.height - 1;
+                            drawCube(item.x, item.y, h, 1, 
+                                isTop ? colors.ground : colors.wall, isTop);
+                        }
+                        break;
+                    case 'star':
+                        drawStar(item.star);
+                        break;
+                    case 'portal':
+                        drawPortal();
+                        break;
+                    case 'player':
+                        drawDino(item.x, item.y, item.z);
+                        break;
+                }
+            });
+            
+            // 绘制粒子
+            updateParticles();
+            drawParticles();
+            
+            // 检查收集星星
+            checkCollisions();
+            
+            // 更新玩家位置
+            updatePlayer();
+            
+            requestAnimationFrame(render);
+        }
+
+        // 碰撞检测
+        function checkCollisions() {
+            // 检查星星收集
+            game.stars.forEach(star => {
+                if (!star.collected && 
+                    Math.abs(game.player.x - star.x) < 0.5 && 
+                    Math.abs(game.player.y - star.y) < 0.5) {
+                    star.collected = true;
+                    game.collectedStars++;
+                    createParticles(star.x, star.y, star.z, colors.star);
+                    updateUI();
+                    
+                    // 检查是否激活传送门
+                    if (game.collectedStars >= game.stars.length) {
+                        game.portal.active = true;
+                    }
+                }
+            });
+            
+            // 检查传送门
+            if (game.portal.active &&
+                Math.abs(game.player.x - game.portal.x) < 0.5 && 
+                Math.abs(game.player.y - game.portal.y) < 0.5) {
+                levelComplete();
+            }
+        }
+
+        // 更新玩家移动
+        function updatePlayer() {
+            if (game.player.moving) {
+                const dx = game.player.targetX - game.player.x;
+                const dy = game.player.targetY - game.player.y;
+                
+                if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05) {
+                    game.player.x = game.player.targetX;
+                    game.player.y = game.player.targetY;
+                    game.player.z = game.grid[Math.floor(game.player.x)][Math.floor(game.player.y)];
+                    game.player.moving = false;
+                } else {
+                    game.player.x += dx * 0.2;
+                    game.player.y += dy * 0.2;
+                    // 跳跃动画
+                    const progress = 1 - Math.abs(dx) / Math.abs(game.player.targetX - game.player.x + 0.001);
+                    game.player.z = Math.max(
+                        game.grid[Math.floor(game.player.x)][Math.floor(game.player.y)],
+                        game.grid[Math.floor(game.player.targetX)][Math.floor(game.player.targetY)]
+                    ) + Math.sin(progress * Math.PI) * 0.5;
+                }
+            }
+        }
+
+        // 移动玩家
+        function movePlayer(dx, dy) {
+            if (game.player.moving) return;
+            
+            const newX = Math.floor(game.player.x + dx);
+            const newY = Math.floor(game.player.y + dy);
+            
+            if (newX >= 0 && newX < game.grid.length && 
+                newY >= 0 && newY < game.grid[0].length &&
+                game.grid[newX][newY] > 0) {
+                
+                // 检查高度差（纪念碑谷风格：只能上一级或同级）
+                const currentHeight = game.grid[Math.floor(game.player.x)][Math.floor(game.player.y)];
+                const targetHeight = game.grid[newX][newY];
+                
+                if (targetHeight <= currentHeight + 1) {
+                    game.player.targetX = newX;
+                    game.player.targetY = newY;
+                    game.player.moving = true;
+                }
+            }
+        }
+
+        // 关卡完成
+        function levelComplete() {
+            document.getElementById('messageBox').style.display = 'block';
+        }
+
+        // 下一关
+        game.nextLevel = function() {
+            document.getElementById('messageBox').style.display = 'none';
+            if (game.level < game.maxLevels) {
+                game.level++;
+                initLevel(game.level);
+            } else {
+                // 游戏通关
+                document.querySelector('.message h2').textContent = '恭喜通关！';
+                document.querySelector('.message p').textContent = '你已完成所有关卡！';
+                document.querySelector('.btn').textContent = '重新开始';
+                document.querySelector('.btn').onclick = () => {
+                    game.level = 1;
+                    document.getElementById('messageBox').style.display = 'none';
+                    initLevel(1);
+                };
+                document.getElementById('messageBox').style.display = 'block';
+            }
+        };
+
+        // 更新UI
+        function updateUI() {
+            document.getElementById('currentLevel').textContent = game.level;
+        }
+
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w':
+                case 'arrowup':
+                    movePlayer(0, -1);
+                    break;
+                case 's':
+                case 'arrowdown':
+                    movePlayer(0, 1);
+                    break;
+                case 'a':
+                case 'arrowleft':
+                    movePlayer(-1, 0);
+                    break;
+                case 'd':
+                case 'arrowright':
+                    movePlayer(1, 0);
+                    break;
+            }
+        });
+
+        // 触摸控制（移动端）
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        canvas.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+        
+        canvas.addEventListener('touchend', (e) => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+            
+            if (Math.abs(dx) > Math.abs(dy)) {
+                movePlayer(dx > 0 ? 1 : -1, 0);
+            } else {
+                movePlayer(0, dy > 0 ? 1 : -1);
+            }
+        });
+
+        // 初始化游戏
+        initLevel(1);
+        render();
+    </script>
+</body>
+</html>
